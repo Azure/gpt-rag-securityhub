@@ -1,14 +1,11 @@
 import azure.functions as func
 import os
-from azure.ai.contentsafety import ContentSafetyClient
-from azure.ai.contentsafety.models import TextCategory
-from azure.core.credentials import AzureKeyCredential
-from azure.core.exceptions import HttpResponseError
-from azure.ai.contentsafety.models import AnalyzeTextOptions
 import safety_checks.safety_checks as safety_checks
 import logging
 import asyncio
 import json
+import aiohttp
+
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 
@@ -36,26 +33,32 @@ async def security_hub(req: func.HttpRequest) -> func.HttpResponse:
     if not question or not answer or not sources:
         return func.HttpResponse("Missing question, answer, or sources in the request", status_code=400)
 
-    # Create a Content Safety client
-    client = ContentSafetyClient(CONTENT_SAFETY_ENDPOINT, AzureKeyCredential(CONTENT_SAFETY_KEY))
     #Call content safety functions
-    checks = [
-        safety_checks.groundedness_check(question, answer, sources, client),
-        safety_checks.prompt_shield(question, sources, client),
-        safety_checks.jailbreak_detection(question, client),
-        safety_checks.protected_material_detection(question, client)
-    ]
-    check_results = {}
+    headers={
+        "Content-Type": "application/json",
+        "Ocp-Apim-Subscription-Key": CONTENT_SAFETY_KEY
+        }
+    async with aiohttp.ClientSession(headers=headers,base_url=CONTENT_SAFETY_ENDPOINT) as session:
+        checks = [
+            safety_checks.groundedness_check(question, answer, sources, session),
+            safety_checks.prompt_shield(question, sources, session),
+            safety_checks.jailbreak_detection(question, session),
+            safety_checks.protected_material_detection(answer, session)
+        ]
+        check_results = {}
 
-    for check in asyncio.as_completed(checks):
-        check_name, status_code, check_result = await check
-        # If the status code is not 200, record the error and continue to the next check
-        if status_code != 200:
-            check_results[check_name] = "Error: Failed request"
-            continue
-        # If the check_result indicates a failure, record the failure
-        if check_result:
-            check_results[check_name] = f"Content safety check {check_name}failed"
+        for check in asyncio.as_completed(checks):
+            try:
+                check_name, status_code, check_result = await check
+                # If the status code is not 200, record the error and continue to the next check
+                if status_code != 200:
+                    check_results[check_name] = f"Error: {check_name} Failed request with code {status_code}"
+                # If the check_result indicates a failure, record the failure
+                elif check_result:
+                    check_results[check_name] = f"Prompt failed {check_name} check"
+                else:
+                    logging.info(f"Prompt passed {check_name} check")
+            except Exception as e:logging.error(f"Error occurred during content safety check: {e}")
 
     # Determine if all checks were successful
     successful = len(check_results) == 0
