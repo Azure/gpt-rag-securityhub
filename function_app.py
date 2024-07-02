@@ -20,7 +20,7 @@ CONTENT_SAFETY_API_VERSION = os.environ.get("CONTENT_SAFETY_API_VERSION", "2024-
 # Initialize your Azure Function
 @app.route(route="SecurityHub")
 async def security_hub(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Processing request.')
+    logging.info(f"Processing request")
     # Extract question, answer, and sources from the request
     try:
         req_body = req.get_json()
@@ -32,7 +32,7 @@ async def security_hub(req: func.HttpRequest) -> func.HttpResponse:
 
     if not question or not answer or not sources:
         return func.HttpResponse("Missing question, answer, or sources in the request", status_code=400)
-
+    logging.info(f"Received params: question={question[:100]}, answer={answer[:100]}, sources={sources[:100]}")
     #Call content safety functions
     headers={
         "Content-Type": "application/json",
@@ -41,28 +41,31 @@ async def security_hub(req: func.HttpRequest) -> func.HttpResponse:
     async with aiohttp.ClientSession(headers=headers,base_url=CONTENT_SAFETY_ENDPOINT) as session:
         checks = [
             safety_checks.groundedness_check(question, answer, sources, session),
-            safety_checks.prompt_shield(question, sources, session),
+            safety_checks.prompt_shield(question, session),
             safety_checks.jailbreak_detection(question, session),
             safety_checks.protected_material_detection(answer, session)
         ]
         check_results = {}
-
+        logging.info("Starting content safety checks")
+        successful=True
         for check in asyncio.as_completed(checks):
             try:
                 check_name, status_code, check_result = await check
                 # If the status code is not 200, record the error and continue to the next check
                 if status_code != 200:
                     check_results[check_name] = f"Error: {check_name} Failed request with code {status_code}"
+                    successful=False
                 # If the check_result indicates a failure, record the failure
                 elif check_result:
                     check_results[check_name] = f"Prompt failed {check_name} check"
+                    successful=False
                 else:
                     logging.info(f"Prompt passed {check_name} check")
-            except Exception as e:logging.error(f"Error occurred during content safety check: {e}")
-
-    # Determine if all checks were successful
-    successful = len(check_results) == 0
-
+                    check_results[check_name] = f"Prompt passed {check_name} check"
+            except Exception as e:
+                logging.error(f"Error occurred during content safety check: {e}")
+                check_results[check_name] = f"Error: {check_name} Failed with exception {e}"
+                successful=False
     # Prepare the response object
     response_data = {
         "successful": successful,
