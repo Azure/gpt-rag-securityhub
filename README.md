@@ -1,14 +1,36 @@
-# Project
+# Enterprise RAG Security Hub
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+This Security Hub is part of the **Enterprise RAG (GPT-RAG)** Solution Accelerator.
 
-As the maintainer of this project, please make a few updates:
+To learn more about the Enterprise RAG, please go to [https://aka.ms/gpt-rag](https://aka.ms/gpt-rag).
 
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+### Cloud Deployment
+
+To deploy the Security Hub in the cloud for the first time, please follow the deployment instructions provided in the [Enterprise RAG repo](https://github.com/Azure/GPT-RAG?tab=readme-ov-file#getting-started).  
+   
+These instructions include the necessary infrastructure templates to provision the solution in the cloud.  
+   
+Once the infrastructure is provisioned, you can redeploy just the orchestrator component using the instructions below:
+
+First, please confirm that you have met the prerequisites:
+
+ - Azure Developer CLI: [Download azd for Windows](https://azdrelease.azureedge.net/azd/standalone/release/1.5.0/azd-windows-amd64.msi), [Other OS's](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd).
+ - Git: [Download Git](https://git-scm.com/downloads)
+ - Python 3.10: [Download Python](https://www.python.org/downloads/release/python-31011/)
+
+Then just clone this repository and reproduce the following commands within the gpt-rag-orchestrator directory:  
+
+```
+azd auth login  
+azd env refresh  
+azd deploy  
+```
+
+> Note: when running the ```azd env refresh```, use the same environment name, subscription, and region used in the initial provisioning of the infrastructure.
+
+### Running Locally with VS Code  
+   
+[How can I test the solution locally in VS Code?](docs/LOCAL_DEPLOYMENT.md)
 
 ## Contributing
 
@@ -26,8 +48,8 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
 ## Trademarks
 
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
-trademarks or logos is subject to and must follow 
+This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft
+trademarks or logos is subject to and must follow
 [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
 Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
 Any use of third-party trademarks or logos are subject to those third-party's policies.
