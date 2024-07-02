@@ -22,7 +22,7 @@ async def groundedness_check(question,answer,sources,session: aiohttp.ClientSess
         check_result = json_response.get("ungroundedDetected")
     return "ungrounded",status_code, check_result
 
-async def prompt_shield(question,sources,session: aiohttp.ClientSession):
+async def prompt_shield(question,session: aiohttp.ClientSession):
     url="/contentsafety/text:shieldPrompt"
     json={
         "userPrompt": question, #max 10K characters
@@ -31,7 +31,6 @@ async def prompt_shield(question,sources,session: aiohttp.ClientSession):
     async with session.post(url=url,json=json,params=params) as response:
         status_code = response.status
         json_response = await response.json()
-        logging.info(json_response)
         if status_code != 200:
             return "promptShield",status_code, False
         check_result = json_response.get("userPromptAnalysis").get("detected")
