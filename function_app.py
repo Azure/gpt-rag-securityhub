@@ -4,17 +4,14 @@ import safety_checks.safety_checks as safety_checks
 import logging
 import asyncio
 import json
-import aiohttp
+from shared.util import get_secret
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.contentsafety.aio import ContentSafetyClient
+
 
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
-
-import azure.functions as func
-import logging
-import requests  # You might need to install this dependency
-
 CONTENT_SAFETY_ENDPOINT = os.environ.get("CONTENT_SAFETY_ENDPOINT")
-CONTENT_SAFETY_KEY = os.environ.get("CONTENT_SAFETY_KEY")
 CONTENT_SAFETY_API_VERSION = os.environ.get("CONTENT_SAFETY_API_VERSION", "2024-02-15-preview")
 
 # Initialize your Azure Function
@@ -34,42 +31,43 @@ async def security_hub(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse("Missing question, answer, or sources in the request", status_code=400)
     logging.info(f"Received params: question={question[:100]}, answer={answer[:100]}, sources={sources[:100]}")
     #Call content safety functions
-    headers={
-        "Content-Type": "application/json",
-        "Ocp-Apim-Subscription-Key": CONTENT_SAFETY_KEY
-        }
-    async with aiohttp.ClientSession(headers=headers,base_url=CONTENT_SAFETY_ENDPOINT) as session:
+    content_safety_key=await get_secret("contentSafetyKey")
+    key=AzureKeyCredential(content_safety_key)
+    async with ContentSafetyClient(endpoint=CONTENT_SAFETY_ENDPOINT, credential=key) as client:
         checks = [
-            safety_checks.groundedness_check(question, answer, sources, session),
-            safety_checks.prompt_shield(question, session),
-            safety_checks.jailbreak_detection(question, session),
-            safety_checks.protected_material_detection(answer, session)
+            safety_checks.groundedness_check_wrapper(question, answer, sources,client),
+            safety_checks.prompt_shield_wrapper(question,client),
+            safety_checks.jailbreak_detection_wrapper(question,client),
+            safety_checks.protected_material_detection_wrapper(answer,client),
+            safety_checks.analyze_text_wrapper(question, answer,client)
         ]
+        check_names = ["groundedness", "promptShield", "jailbreak", "protectedMaterial","TextAnalysis"]
         check_results = {}
+        details = {}
         logging.info("Starting content safety checks")
-        successful=True
-        for check in asyncio.as_completed(checks):
-            try:
-                check_name, status_code, check_result = await check
-                # If the status code is not 200, record the error and continue to the next check
-                if status_code != 200:
-                    check_results[check_name] = f"Error: {check_name} Failed request with code {status_code}"
-                    successful=False
+        results = await asyncio.gather(*checks, return_exceptions=True)
+        for index, result in enumerate(results):
+            check_name = check_names[index]
+            if isinstance(result, Exception):
+                # Handle the exception
+                logging.error(f"Error occurred during {check_name} content safety check: {result}")
+                check_results[check_name] = f"Prompt failed {check_name} check"
+                check_details = f"Error: Failed check with exception {result}"
+            else:
+                # Assuming result is now a tuple (check_result, check_details)
+                check_result, check_details = result
                 # If the check_result indicates a failure, record the failure
-                elif check_result:
-                    check_results[check_name] = f"Prompt failed {check_name} check"
-                    successful=False
+                if check_result:
+                    check_results[check_name] = "Failed"
+                    details[check_name] = check_details  # Correctly update details with check_details
                 else:
-                    logging.info(f"Prompt passed {check_name} check")
-                    check_results[check_name] = f"Prompt passed {check_name} check"
-            except Exception as e:
-                logging.error(f"Error occurred during content safety check: {e}")
-                check_results[check_name] = f"Error: {check_name} Failed with exception {e}"
-                successful=False
+                    check_results[check_name] = "Passed"
+                    details[check_name] = check_details  # Correctly update details even if check passed
+
     # Prepare the response object
     response_data = {
-        "successful": successful,
-        "details": check_results
+        "results": check_results,
+        "details":details
     }
 
     # Return a JSON response
