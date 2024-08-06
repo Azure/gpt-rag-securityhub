@@ -16,7 +16,7 @@ CONTENT_SAFETY_API_VERSION = os.environ.get("CONTENT_SAFETY_API_VERSION", "2024-
 APIM_ENABLED=os.environ.get("APIM_ENABLED", "false").lower() == "true"
 
 @app.route(route="QuestionChecks")
-async def security_hub(req: func.HttpRequest) -> func.HttpResponse:
+async def cf_question_checks(req: func.HttpRequest) -> func.HttpResponse:
     # Extract question, answer, and sources from the request
     try:
         req_body = req.get_json()
@@ -79,7 +79,7 @@ async def security_hub(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps(response_data), status_code=200, mimetype="application/json")
 
 @app.route(route="AnswerChecks")
-async def answer_checks(req: func.HttpRequest) -> func.HttpResponse:
+async def cf_answer_checks(req: func.HttpRequest) -> func.HttpResponse:
     try:
         req_body = req.get_json()
         question = req_body.get('question')
