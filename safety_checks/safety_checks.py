@@ -172,8 +172,8 @@ async def analyze_text(text, client: ContentSafetyClient):
     return False, result
 
 # Wrapper function to handle the splitting of the input strings within API limits
-async def analyze_text_wrapper(question,answer, client: ContentSafetyClient):
-    texts=divide_string(question+answer, max_chars=MAX_ANALYZE_TEXT_LENGTH)
+async def analyze_text_wrapper(text, client: ContentSafetyClient):
+    texts=divide_string(text, max_chars=MAX_ANALYZE_TEXT_LENGTH)
     checks=[]
     details={'blocklistsMatch': [], 'categoriesAnalysis': []}
     max_category_values={}
