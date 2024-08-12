@@ -104,8 +104,11 @@ async def jailbreak_detection(question, client: ContentSafetyClient):
     try:
         response.raise_for_status()  # Raises an error for bad status
         json_response = response.json()
-        check_result = json_response.get("jailbreakDetected")
+        check_result = json_response.get("jailbreakAnalysis").get("detected")
         return check_result,json_response
+    except Exception as e:
+        logging.error(f"Error occurred during jailbreak check: {e}")
+        raise e
     finally:
         await response.close()  # Ensure the response is closed
         
@@ -123,6 +126,7 @@ async def jailbreak_detection_wrapper(question, client: ContentSafetyClient):
         else:
             check_result, check_details = result
             if check_result:
+                logging.info(f"Jailbreak detected")
                 return check_result, check_details
     return False, "Prompt passed jailbreak check"
 
