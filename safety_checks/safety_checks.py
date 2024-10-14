@@ -62,9 +62,11 @@ async def groundedness_check_wrapper(question, answer, sources, client: ContentS
     
     
     
-async def prompt_shield(question, client: ContentSafetyClient):
+async def prompt_shield(question=None,sources=None, client: ContentSafetyClient=None):
     url = "/text:shieldPrompt"
-    json_payload = {"userPrompt": question}
+    
+    json_payload = {"userPrompt": question,
+                    "documents": [sources]}
     params = {"api-version": CONTENT_SAFETY_API_VERSION}
     request = HttpRequest("POST", url, json=json_payload, params=params)
     
@@ -72,17 +74,31 @@ async def prompt_shield(question, client: ContentSafetyClient):
     try:
         response.raise_for_status()  # Raises an error for bad status
         json_response = response.json()
-        check_result = json_response.get("userPromptAnalysis").get("detected")
+        logging.info(f"Prompt shield response: {json_response}")
+        if(question):
+            check_result = json_response.get("userPromptAnalysis").get("attackDetected")
+        else:
+            check_result=False
+            for document in json_response.get("documentsAnalysis"):
+                if document.get("attackDetected")==True:
+                    check_result=True
         return check_result,json_response
     finally:
         await response.close()  # Ensure the response is closed
 
 # Wrapper function to handle the splitting of the input strings within API limits
-async def prompt_shield_wrapper(question, client: ContentSafetyClient):
-    question=divide_string(question, max_chars=MAX_PROMPTSHIELD_LENGTH)
+async def prompt_shield_wrapper(question=None,sources=None, client: ContentSafetyClient=None):
+    if(question):
+        text=divide_string(question, max_chars=MAX_PROMPTSHIELD_LENGTH)
+    else:
+        text=divide_string(sources, max_chars=MAX_PROMPTSHIELD_LENGTH)
     checks=[]
-    for q in question:
-        checks.append(prompt_shield(q,client))
+    if(question):
+        for q in text:
+            checks.append(prompt_shield(question=q,client=client))
+    else:
+        for s in text:
+            checks.append(prompt_shield(sources=s,client=client))
     results=await asyncio.gather(*checks,return_exceptions=True)
     for result in results:
         if isinstance(result, Exception):
