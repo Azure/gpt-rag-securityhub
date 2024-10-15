@@ -33,7 +33,6 @@ async def cf_question_checks(req: func.HttpRequest) -> func.HttpResponse:
         key=AzureKeyCredential(content_safety_key)
         endpoint=os.environ.get("APIM_ENDPOINT")
     else:
-        content_safety_key=await get_secret("contentSafetyKey")
         endpoint=CONTENT_SAFETY_ENDPOINT
     async with DefaultAzureCredential() as credential:
         if(APIM_ENABLED):
@@ -42,11 +41,11 @@ async def cf_question_checks(req: func.HttpRequest) -> func.HttpResponse:
             content_safety_credential=credential
         async with ContentSafetyClient(endpoint=endpoint, credential=content_safety_credential) as client:
             checks = [
-                safety_checks.prompt_shield_wrapper(question,client),
+                safety_checks.prompt_shield_wrapper(question=question,client=client),
                 safety_checks.jailbreak_detection_wrapper(question,client),
                 safety_checks.analyze_text_wrapper(question,client)
             ]
-            check_names = ["promptShield", "jailbreak","TextAnalysis"]
+            check_names = ["promptShield(Question)", "jailbreak","TextAnalysis"]
             check_results = {}
             details = {}
             logging.info("Starting content safety checks")
@@ -94,40 +93,44 @@ async def cf_answer_checks(req: func.HttpRequest) -> func.HttpResponse:
     #Call content safety functions
     if APIM_ENABLED:
         content_safety_key=await get_secret("apimSubscriptionKey")
+        key=AzureKeyCredential(content_safety_key)
         endpoint=os.environ.get("APIM_ENDPOINT")
     else:
-        content_safety_key=await get_secret("contentSafetyKey")
         endpoint=CONTENT_SAFETY_ENDPOINT
-    key=AzureKeyCredential(content_safety_key)
-    
-    async with ContentSafetyClient(endpoint=endpoint, credential=key) as client:
-        checks = [
-            safety_checks.groundedness_check_wrapper(question, answer, sources,client),
-            safety_checks.protected_material_detection_wrapper(answer,client),
-            safety_checks.analyze_text_wrapper(answer,client)
-        ]
-        check_names = ["groundedness","protectedMaterial","TextAnalysis"]
-        check_results = {}
-        details = {}
-        logging.info("Starting content safety checks")
-        results = await asyncio.gather(*checks, return_exceptions=True)
-        for index, result in enumerate(results):
-            check_name = check_names[index]
-            if isinstance(result, Exception):
-                # Handle the exception
-                logging.error(f"Error occurred during {check_name} content safety check: {result}")
-                check_results[check_name] = "Failed"
-                check_details = f"Error: Failed check with exception {result}"
-            else:
-                # Assuming result is now a tuple (check_result, check_details)
-                check_result, check_details = result
-                # If the check_result indicates a failure, record the failure
-                if check_result:
+    async with DefaultAzureCredential() as credential:
+        if(APIM_ENABLED):
+            content_safety_credential=key
+        else:
+            content_safety_credential=credential
+        async with ContentSafetyClient(endpoint=endpoint, credential=content_safety_credential) as client:
+            checks = [
+                safety_checks.groundedness_check_wrapper(question, answer, sources,client),
+                safety_checks.protected_material_detection_wrapper(answer,client),
+                safety_checks.analyze_text_wrapper(answer,client),
+                safety_checks.prompt_shield_wrapper(sources=sources,client=client)
+            ]
+            check_names = ["groundedness","protectedMaterial","TextAnalysis","promptShield(sources)"]
+            check_results = {}
+            details = {}
+            logging.info("Starting content safety checks")
+            results = await asyncio.gather(*checks, return_exceptions=True)
+            for index, result in enumerate(results):
+                check_name = check_names[index]
+                if isinstance(result, Exception):
+                    # Handle the exception
+                    logging.error(f"Error occurred during {check_name} content safety check: {result}")
                     check_results[check_name] = "Failed"
-                    details[check_name] = check_details  # Correctly update details with check_details
+                    check_details = f"Error: Failed check with exception {result}"
                 else:
-                    check_results[check_name] = "Passed"
-                    details[check_name] = check_details  # Correctly update details even if check passed
+                    # Assuming result is now a tuple (check_result, check_details)
+                    check_result, check_details = result
+                    # If the check_result indicates a failure, record the failure
+                    if check_result:
+                        check_results[check_name] = "Failed"
+                        details[check_name] = check_details  # Correctly update details with check_details
+                    else:
+                        check_results[check_name] = "Passed"
+                        details[check_name] = check_details  # Correctly update details even if check passed
 
     # Prepare the response object
     response_data = {
