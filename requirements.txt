@@ -8,3 +8,5 @@ aiohttp
 azure-identity==1.15.0
 azure-keyvault-secrets==4.7.0
 azure-cosmos
+semantic-kernel
+tenacity
