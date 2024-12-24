@@ -9,3 +9,4 @@ azure-keyvault-secrets==4.7.0
 semantic-kernel==1.17.1
 tenacity==8.2.3
 aiohttp==3.11.10
+azure-ai-contentsafety==1.0.0
