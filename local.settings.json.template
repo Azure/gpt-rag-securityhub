@@ -5,11 +5,15 @@
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "AzureWebJobsFeatureFlags": "EnableWorkerIndexing",
     "CONTENT_SAFETY_ENDPOINT": "",
+    "APIM_ENABLED": "false",
     "AZURE_KEY_VAULT_NAME": "",
     "BLOCKLIST_CHECK": "false",
     "BLOCKLISTS_NAMES": "",
     "AZURE_DB_ID": "",
-    "AZURE_DB_NAME": ""
-
+    "AZURE_DB_NAME": "",
+    "RESPONSABLE_AI_CHECK": "False",
+    "AZURE_OPENAI_RESOURCE" : "",
+    "AZURE_OPENAI_CHATGPT_DEPLOYMENT": "",
+    "AZURE_OPENAI_CHATGPT_MODEL": ""
   }
 }

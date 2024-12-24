@@ -1,0 +1,12 @@
+curl --request GET \
+  --url http:///%7Bendpoint%7D/api/audit \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/10.2.0' \
+  --header 'X-functions-key: ' \
+  --data '{
+	"question":"",
+	"answer":"",
+	"sources":"",
+	"security_checks":"",
+	"conversation_id":""
+}'

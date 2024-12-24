@@ -1,0 +1,8 @@
+curl --request GET \
+  --url http:///%7Bendpoint%7D/api/AnswerChecks \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/9.3.1' \
+  --header 'X-functions-key: ' \
+  --data '{"question":"",
+"answer":"",
+"sources":""}'
