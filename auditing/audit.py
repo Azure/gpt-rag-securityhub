@@ -9,10 +9,10 @@ app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 CONTENT_SAFETY_ENDPOINT = os.environ.get("CONTENT_SAFETY_ENDPOINT")
 CONTENT_SAFETY_API_VERSION = os.environ.get("CONTENT_SAFETY_API_VERSION", "2024-02-15-preview")
 APIM_ENABLED=os.environ.get("APIM_ENABLED", "false").lower() == "true"
-AZURE_DB_URI=os.environ.get("AZURE_DB_URI")
 AZURE_DB_NAME=os.environ.get("AZURE_DB_NAME")
 AZURE_DB_ID=os.environ.get("AZURE_DB_ID")
 AZURE_DB_URI = f"https://{AZURE_DB_ID}.documents.azure.com:443/"
+AZURE_DB_CONTAINER_NAME = os.environ.get("AZURE_DB_CONTAINER_NAME")
 PLUGINS_FOLDER = f"plugins"
 RESPONSABLE_AI_CHECK=os.environ.get("RESPONSABLE_AI_CHECK", "false").lower() == "true"
 
@@ -20,7 +20,7 @@ async def audit_to_db(conversation_id, question, answer, sources, security_check
     async with DefaultAzureCredential() as credential:       
         async with CosmosClient(AZURE_DB_URI, credential=credential) as db_client:
             db = db_client.get_database_client(database=AZURE_DB_NAME)
-            container = db.get_container_client('security_logs')
+            container = db.get_container_client(AZURE_DB_CONTAINER_NAME)
             try:
                 conversation = await container.read_item(item=conversation_id, partition_key=conversation_id)
                 logging.info(f"[orchestrator] conversation {conversation_id} retrieved.")
